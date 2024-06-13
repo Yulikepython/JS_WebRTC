@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>録画機能デモ</title>
+</head>
+
+<body>
+    <!-- スクリーンのビデオ要素-->
+    <video id="screenVideo" width ="1920" height="auto" autoplay muted style="display:block;"></video>
+    <!-- カメラのビデオ要素-->
+    <video id="cameraVideo" width="320" height="240" autoplay playsinline style="display:block;"></video>
+    <!-- リプレイを表示する要素 -->
+    <video id="replayVideo" autoplay playsinline controls style="display:none;"></video>
+    <!-- 録画を動作するボタン -->
+    <button id="start">録画開始</button>
+    <button id="stop" disabled>録画停止</button>
+    <button id="save" disabled>動画保存</button>
+    <script src="recording-screen.js"></script>
+</body>
+
+</html>
