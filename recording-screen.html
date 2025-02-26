@@ -1,23 +1,78 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
- <meta charset="UTF-8">
- <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>録画機能デモ</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スクリーン録画アプリ（カメラ付き）</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    /* カメラ映像用のスタイル */
+    #cameraContainer {
+      position: absolute;
+      right: 20px;
+      bottom: 60px; /* ステータスバーの高さを考慮 */
+      border: 2px solid white;
+      border-radius: 4px;
+      overflow: hidden;
+      z-index: 10;
+      width: 240px; /* 初期サイズ */
+      height: 180px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    }
+    
+    #cameraVideo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  </style>
 </head>
 
 <body>
-    <!-- スクリーンのビデオ要素-->
-    <video id="screenVideo" width ="1920" height="auto" autoplay muted style="display:block;"></video>
-    <!-- カメラのビデオ要素-->
-    <video id="cameraVideo" width="320" height="240" autoplay playsinline style="display:block;"></video>
-    <!-- リプレイを表示する要素 -->
-    <video id="replayVideo" autoplay playsinline controls style="display:none;"></video>
-    <!-- 録画を動作するボタン -->
-    <button id="start">録画開始</button>
-    <button id="stop" disabled>録画停止</button>
-    <button id="save" disabled>動画保存</button>
-    <script src="recording-screen.js"></script>
+  <h1>スクリーン録画アプリ（カメラ付き）</h1>
+  
+  <div class="container">
+    <!-- ビデオコンテナ -->
+    <div class="video-container">
+      <!-- スクリーンのビデオ要素 -->
+      <video id="screenVideo" autoplay muted></video>
+      
+      <!-- カメラのビデオ要素をコンテナで囲む -->
+      <div id="cameraContainer">
+        <video id="cameraVideo" autoplay muted playsinline></video>
+      </div>
+      
+      <!-- リプレイを表示する要素 -->
+      <video id="replayVideo" autoplay playsinline controls style="display:none;"></video>
+      
+      <!-- ステータスバー -->
+      <div class="status-bar" id="statusBar">
+        <span id="statusText">録画準備完了</span>
+      </div>
+    </div>
+    
+    <!-- コントロール -->
+    <div class="controls">
+      <button id="start" class="btn btn-start">
+        <i class="material-icons">fiber_manual_record</i>録画開始
+      </button>
+      <button id="stop" class="btn btn-stop" disabled>
+        <i class="material-icons">stop</i>録画停止
+      </button>
+      <button id="save" class="btn btn-save" disabled>
+        <i class="material-icons">save_alt</i>動画保存
+      </button>
+    </div>
+  </div>
+  
+  <div class="info">
+    <p>このアプリはWebRTC技術を使用して、ブラウザ上で画面とカメラを録画します。</p>
+    <p>「録画開始」を押すと、共有する画面を選択できます。</p>
+  </div>
+  
+  <script src="recording-screen.js"></script>
 </body>
-
 </html>
