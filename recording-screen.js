@@ -81,15 +81,27 @@ function saveRecording() {
 }
 
 function stopRecording() {
- mediaRecorder.stop();
  console.log('録画停止');
+ 
+ // onstopイベントハンドラを先に設定
  mediaRecorder.onstop = () => {
    replay();
    startButton.disabled = false;
    stopButton.disabled = true;
-   recordVideo.srcObject.getTracks().forEach(track => track.stop());
-   cameraVideo.srcObject.getTracks().forEach(track => track.stop());
+   
+   // トラックを停止（recordVideoではなくscreenVideo）
+   if (screenVideo.srcObject) {
+     screenVideo.srcObject.getTracks().forEach(track => track.stop());
+   }
+   
+   // カメラのトラックも停止
+   if (cameraVideo.srcObject) {
+     cameraVideo.srcObject.getTracks().forEach(track => track.stop());
+   }
  };
+ 
+ // 録画を停止
+ mediaRecorder.stop();
 }
 
 startButton.addEventListener('click', () => {
