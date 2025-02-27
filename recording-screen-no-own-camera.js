@@ -1,6 +1,4 @@
 const screenVideo = document.getElementById('screenVideo');
-const cameraVideo = document.getElementById('cameraVideo');
-const cameraContainer = document.getElementById('cameraContainer');
 const replayVideo = document.getElementById('replayVideo');
 const startButton = document.getElementById('start');
 const stopButton = document.getElementById('stop');
@@ -10,11 +8,9 @@ const statusBar = document.getElementById('statusBar');
 
 let mediaRecorder;
 let recordedBlobs = [];
-let animationFrameId = null;
+let animationFrameId = null; // アニメーションフレームIDを追跡
 let recordingStartTime = null;
 let recordingTimer = null;
-let screenStream = null;
-let cameraStream = null;
 
 // デバッグ情報を表示しUIも更新するヘルパー関数
 function logStatus(message) {
@@ -22,43 +18,9 @@ function logStatus(message) {
   statusText.textContent = message;
 }
 
-// リソースの解放処理をまとめた関数
-function cleanupResources() {
-  // アニメーションフレームをキャンセル
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-  }
-  
-  // タイマーをクリア
-  if (recordingTimer) {
-    clearTimeout(recordingTimer);
-    recordingTimer = null;
-  }
-  
-  // ストリームをクリーンアップ（スクリーン）
-  if (screenVideo.srcObject) {
-    screenVideo.srcObject.getTracks().forEach(track => {
-      track.stop();
-      console.log(`トラック ${track.kind} が停止されました`);
-    });
-    screenVideo.srcObject = null;
-  }
-  
-  // ストリームをクリーンアップ（カメラ）
-  if (cameraVideo.srcObject) {
-    cameraVideo.srcObject.getTracks().forEach(track => {
-      track.stop();
-      console.log(`トラック ${track.kind} が停止されました`);
-    });
-    cameraVideo.srcObject = null;
-  }
-}
-
 async function startRecording() {
   try {
-    // 録画開始前に既存のストリームとデータをクリア
-    cleanupResources();
+    // 以前の録画データをクリア
     recordedBlobs = [];
     
     // UI更新
@@ -66,16 +28,9 @@ async function startRecording() {
     
     // ユーザーにスクリーン共有を依頼
     logStatus('スクリーン共有を選択してください...');
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
       video: { cursor: "always" },
       audio: false
-    });
-    
-    // カメラと音声のストリームを取得
-    logStatus('カメラへのアクセス準備中...');
-    cameraStream = await navigator.mediaDevices.getUserMedia({ 
-      video: { width: 320, height: 240, facingMode: 'user' }, 
-      audio: true 
     });
     
     logStatus('録画中...');
@@ -112,10 +67,6 @@ async function startRecording() {
     // ビデオ要素にストリームを設定
     screenVideo.srcObject = screenStream;
     screenVideo.style.display = 'block';
-    
-    cameraVideo.srcObject = cameraStream;
-    cameraContainer.style.display = 'block'; // カメラコンテナを表示
-    
     replayVideo.style.display = 'none';
     
     // キャンバスを作成
@@ -130,33 +81,15 @@ async function startRecording() {
     
     console.log(`キャンバスサイズ: ${canvas.width}x${canvas.height}`);
     
-    // カメラサイズと位置の設定 - これはキャンバス用（録画時のみ使用）
-    const cameraWidth = Math.floor(canvas.width / 5); // 画面の1/5の幅
-    const cameraHeight = Math.floor(cameraWidth * 3 / 4); // 4:3のアスペクト比
-    const cameraX = canvas.width - cameraWidth - 20; // 右端から20px内側
-    const cameraY = canvas.height - cameraHeight - 20; // 下端から20px内側
-    
     // キャンバスに描画する関数
     function drawVideoToCanvas() {
-      try {
-        // スクリーンビデオにデータがあるか確認
-        if (screenVideo.readyState >= 2) { // HAVE_CURRENT_DATA以上
-          // スクリーン映像を描画
+      // スクリーンビデオにデータがあるか確認
+      if (screenVideo.readyState >= 2) { // HAVE_CURRENT_DATA以上
+        try {
           ctx.drawImage(screenVideo, 0, 0, canvas.width, canvas.height);
+        } catch (e) {
+          console.error('キャンバス描画エラー:', e);
         }
-        
-        // カメラビデオにデータがあるか確認
-        if (cameraVideo.readyState >= 2) { // HAVE_CURRENT_DATA以上
-          // カメラ映像を右下に小さく描画
-          ctx.drawImage(cameraVideo, cameraX, cameraY, cameraWidth, cameraHeight);
-          
-          // カメラ枠を描画
-          ctx.strokeStyle = 'white';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(cameraX, cameraY, cameraWidth, cameraHeight);
-        }
-      } catch (e) {
-        console.error('キャンバス描画エラー:', e);
       }
       
       // 引き続きアニメーションを続ける（停止まで）
@@ -169,18 +102,15 @@ async function startRecording() {
     // キャンバスをストリームとして取得
     const captureStream = canvas.captureStream(30);
     
-    // 音声用のストリームを作成
-    const audioStream = new MediaStream(cameraStream.getAudioTracks());
-    
-    // キャプチャストリームと音声ストリームを結合する
-    const stream = new MediaStream([...captureStream.getVideoTracks(), ...audioStream.getAudioTracks()]);
+    // ストリームを作成
+    const stream = new MediaStream([...captureStream.getVideoTracks()]);
     
     // 互換性のあるMIMEタイプを見つける
-    let options = { mimeType: 'video/webm;codecs=vp9,opus' };
+    let options = { mimeType: 'video/webm;codecs=vp9' };
     
     if (!MediaRecorder.isTypeSupported(options.mimeType)) {
       console.log(`${options.mimeType}はサポートされていません。VP8を試します...`);
-      options = { mimeType: 'video/webm;codecs=vp8,opus' };
+      options = { mimeType: 'video/webm;codecs=vp8' };
       
       if (!MediaRecorder.isTypeSupported(options.mimeType)) {
         console.log(`${options.mimeType}もサポートされていません。デフォルト設定を使用します...`);
@@ -221,7 +151,6 @@ async function startRecording() {
     startButton.disabled = false;
     statusBar.classList.remove('recording');
     logStatus('録画準備完了');
-    cleanupResources();
   }
 }
 
@@ -251,75 +180,29 @@ function stopRecording() {
       animationFrameId = null;
     }
     
-    // データチャンクが利用可能になったときの処理を追加
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data && event.data.size > 0) {
-        recordedBlobs.push(event.data);
-      }
-    };
-    
     // mediaRecorder.stopを呼び出す前にイベントハンドラを設定
     mediaRecorder.onstop = () => {
       console.log('MediaRecorder停止イベント発生');
       
-      // 既存のビデオトラックを停止（トラック停止だけで固まる場合があるので慎重に）
-      try {
-        // カメラコンテナとビデオを非表示
-        cameraContainer.style.display = 'none';
-        
-        // トラックを停止
-        if (screenStream) {
-          screenStream.getTracks().forEach(track => {
-            try {
-              track.stop();
-              console.log(`スクリーントラック ${track.kind} が停止されました`);
-            } catch (e) {
-              console.error(`スクリーントラック停止エラー: ${e.message}`);
-            }
-          });
-        }
-        
-        if (cameraStream) {
-          cameraStream.getTracks().forEach(track => {
-            try {
-              track.stop();
-              console.log(`カメラトラック ${track.kind} が停止されました`);
-            } catch (e) {
-              console.error(`カメラトラック停止エラー: ${e.message}`);
-            }
-          });
-        }
-        
-        // ストリーム参照をクリア
-        screenVideo.srcObject = null;
-        cameraVideo.srcObject = null;
-        screenStream = null;
-        cameraStream = null;
-      } catch (e) {
-        console.error('トラック停止エラー:', e);
+      // ビデオトラックを停止
+      if (screenVideo.srcObject) {
+        screenVideo.srcObject.getTracks().forEach(track => {
+          track.stop();
+          console.log(`トラック ${track.kind} が停止されました`);
+        });
+        screenVideo.srcObject = null; // ストリームへの参照を解除
       }
       
       // ビデオを再生
-      setTimeout(() => {
-        prepareReplay();
-        
-        // ボタンの状態を更新
-        startButton.disabled = false;
-        stopButton.disabled = true;
-      }, 500); // 少し遅延を入れてトラック停止処理が完了するのを待つ
-    };
-    
-    // 録画停止 - エラーをキャッチできるようにtry-catchでラップ
-    try {
-      mediaRecorder.stop();
-    } catch (error) {
-      console.error('MediaRecorder.stop() エラー:', error);
-      // エラーが発生した場合でも続行できるようにする
-      cleanupResources();
       prepareReplay();
+      
+      // ボタンの状態を更新
       startButton.disabled = false;
       stopButton.disabled = true;
-    }
+    };
+    
+    // 録画停止
+    mediaRecorder.stop();
     
   } catch (error) {
     console.error('録画停止エラー:', error);
@@ -331,7 +214,10 @@ function stopRecording() {
     statusBar.classList.remove('recording');
     
     // 強制的にリソースを解放
-    cleanupResources();
+    if (screenVideo.srcObject) {
+      screenVideo.srcObject.getTracks().forEach(track => track.stop());
+      screenVideo.srcObject = null;
+    }
     
     logStatus('録画準備完了');
   }
@@ -373,7 +259,6 @@ function prepareReplay() {
     
     // キャプチャビデオを非表示
     screenVideo.style.display = 'none';
-    cameraContainer.style.display = 'none';
     
     // 保存ボタンを有効化
     saveButton.disabled = false;
@@ -412,7 +297,7 @@ function saveRecording() {
     
     // タイムスタンプ付きのファイル名を設定
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    a.download = `screen-camera-recording-${timestamp}.webm`;
+    a.download = `screen-recording-${timestamp}.webm`;
     
     // リンクをクリックして保存
     document.body.appendChild(a);
@@ -439,15 +324,23 @@ function saveRecording() {
 window.addEventListener('beforeunload', () => {
   // 録画中なら停止
   if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    try {
-      mediaRecorder.stop();
-    } catch (e) {
-      console.error('MediaRecorder停止エラー:', e);
-    }
+    mediaRecorder.stop();
   }
   
-  // リソースをクリーンアップ
-  cleanupResources();
+  // ストリームをクリーンアップ
+  if (screenVideo.srcObject) {
+    screenVideo.srcObject.getTracks().forEach(track => track.stop());
+  }
+  
+  // アニメーションフレームをキャンセル
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+  }
+  
+  // タイマーをクリア
+  if (recordingTimer) {
+    clearTimeout(recordingTimer);
+  }
 });
 
 // イベントリスナーの設定
